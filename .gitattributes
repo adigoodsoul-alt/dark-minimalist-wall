@@ -1,0 +1,12 @@
+# Нормализуем переносы строк: в репозитории всегда LF, на диске — как удобно ОС
+* text=auto eol=lf
+
+# Бинарные типы — Git не должен их трогать
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.woff binary
+*.woff2 binary

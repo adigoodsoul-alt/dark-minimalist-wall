@@ -1,0 +1,32 @@
+# Netlify: конфигурация проекта
+# Документация: https://docs.netlify.com/configure-builds/file-based-configuration/
+
+[build]
+  # Проект статический, сборка не требуется — публикуем корень репозитория
+  publish = "."
+
+# Кэширование статики и базовые заголовки безопасности
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+# JS/CSS можно кэшировать надолго: имя файла не хэшируется, поэтому держим разумный TTL
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+# index.html не кэшируем, чтобы правки подхватывались сразу
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

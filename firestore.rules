@@ -1,0 +1,61 @@
+rules_version = '2';
+
+// ============================================================
+//  Firestore Security Rules для проекта "Dark Minimalist Wall"
+//  Применить: Firebase Console → Firestore Database → Rules
+//  (или через CLI: firebase deploy --only firestore:rules)
+// ============================================================
+//
+//  ВАЖНО ПРО БЕЗОПАСНОСТЬ:
+//  В приложении нет авторизации (любой гость может писать на стену).
+//  Пароль администратора ("admin") хранится на клиенте — это НЕ защита,
+//  а просто UX-переключатель. Поэтому delete открыт всем.
+//  Если нужна настоящая защита — подключай Firebase Auth (Anonymous +
+//  кастомный клейм admin) и меняй правила ниже.
+// ============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /posts/{postId} {
+
+      // 1. Читать доску может любой (в т.ч. realtime onSnapshot)
+      allow read: if true;
+
+      // 2. Создание: проверяем обязательные поля, типы и размеры
+      allow create: if
+        request.resource.data.keys().hasAll(['x', 'y', 'text', 'size', 'font', 'textColor', 'bgStyle'])
+        && request.resource.data.x is number
+        && request.resource.data.y is number
+        && request.resource.data.size is number
+        && request.resource.data.size >= 0.1
+        && request.resource.data.size <= 5
+        && request.resource.data.text is string
+        && request.resource.data.text.size() <= 2000
+        && request.resource.data.font is string
+        && request.resource.data.textColor is string
+        && request.resource.data.bgStyle is string
+        // Лимит документа Firestore = 1 МиБ. Держим картинку ощутимо меньше.
+        && (
+             !request.resource.data.keys().hasAny(['imageBase64'])
+             || request.resource.data.imageBase64.size() < 900000
+           );
+
+      // 3. Обновление: запрещаем менять тип/структуру произвольными данными
+      allow update: if
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['x', 'y', 'zIndex', 'text', 'size', 'font', 'textColor', 'bgStyle'])
+        && request.resource.data.size is number
+        && request.resource.data.text is string
+        && request.resource.data.text.size() <= 2000;
+
+      // 4. Удаление (режим админа). Открыто всем — см. предупреждение выше.
+      allow delete: if true;
+    }
+
+    // Всё остальное закрыто
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
