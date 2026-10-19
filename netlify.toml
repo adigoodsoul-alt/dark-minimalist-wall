@@ -14,16 +14,18 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "geolocation=(), microphone=(), camera=()"
 
-# JS/CSS можно кэшировать надолго: имя файла не хэшируется, поэтому держим разумный TTL
+# JS/CSS отдаём с обязательной ревалидацией: имена файлов не хэшируются,
+# поэтому иначе после деплоя браузер час показывал бы старую версию.
+# Браузер всё равно получит 304 Not Modified, если файл не менялся — трафика почти нет.
 [[headers]]
   for = "/*.js"
   [headers.values]
-    Cache-Control = "public, max-age=3600"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
   for = "/*.css"
   [headers.values]
-    Cache-Control = "public, max-age=3600"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 # index.html не кэшируем, чтобы правки подхватывались сразу
 [[headers]]
