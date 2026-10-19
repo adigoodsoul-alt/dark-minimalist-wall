@@ -82,6 +82,11 @@ iframe[src*="netlify"] {
 .wall-item {
     position: absolute;
     --post-scale: 1; 
+    /* max-content: ширина зависит только от содержимого, а не от того,
+       насколько далеко карточка стоит от левого края холста.
+       Без этого абсолютно позиционированный блок у правого края сжимался,
+       а при движении влево распирал — карточка «меняла размер» при драге. */
+    width: max-content;
     background: var(--surface-color);
     backdrop-filter: blur(8px);
     padding: calc(16px * var(--post-scale));

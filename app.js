@@ -297,7 +297,7 @@ adminToggle.addEventListener('click', () => {
         document.body.classList.remove('admin-mode'); 
         adminToggle.textContent = '🔒'; 
     } else {
-        if (prompt('Введите пароль (admin):') === 'admin') {
+        if (prompt('Введите пароль:') === 'admin') {
             isAdmin = true; 
             document.body.classList.add('admin-mode'); 
             adminToggle.textContent = '🔓';
