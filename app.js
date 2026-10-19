@@ -122,6 +122,10 @@ const accentColors = [
 let scale = 1; 
 let panX = 0; 
 let panY = 0;
+// Пределы зума. Нижний достаточно низкий, чтобы автоподгонка могла
+// уместить на экране даже сильно разросшуюся доску.
+const MIN_SCALE = 0.1;
+const MAX_SCALE = 3;
 let clickX = 0, clickY = 0;
 let tempMarker = null;
 let highestZ = 10;
@@ -138,11 +142,65 @@ function updateWallTransform() {
     wall.style.backgroundPosition = `${-panX / scale}px ${-panY / scale}px`;
 }
 
+// ==========================================
+// 1.1. АВТОПОДГОНКА: показать всю доску при открытии
+// ==========================================
+const FIT_PADDING = 48; // отступ от краёв экрана, px
+
+function fitAllCards() {
+    const items = [...wall.querySelectorAll('.wall-item')];
+    const vw = viewport.clientWidth;
+    const vh = viewport.clientHeight;
+
+    if (!items.length) {
+        scale = 1; panX = 0; panY = 0;
+        updateWallTransform();
+        return;
+    }
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    items.forEach((el) => {
+        minX = Math.min(minX, el.offsetLeft);
+        minY = Math.min(minY, el.offsetTop);
+        maxX = Math.max(maxX, el.offsetLeft + el.offsetWidth);
+        maxY = Math.max(maxY, el.offsetTop + el.offsetHeight);
+    });
+
+    const contentW = Math.max(1, maxX - minX);
+    const contentH = Math.max(1, maxY - minY);
+
+    // Масштаб, при котором всё содержимое влезает с отступами.
+    // Больше 1 не увеличиваем — иначе маленькая доска «распухнет».
+    let newScale = Math.min(
+        (vw - FIT_PADDING * 2) / contentW,
+        (vh - FIT_PADDING * 2) / contentH
+    );
+    newScale = Math.max(MIN_SCALE, Math.min(newScale, 1));
+
+    scale = newScale;
+    panX = (vw - contentW * scale) / 2 - minX * scale;
+    panY = (vh - contentH * scale) / 2 - minY * scale;
+    updateWallTransform();
+}
+
+// Ждём загрузки картинок: от их размера зависит размер карточки.
+function waitForWallImages(timeoutMs = 1500) {
+    const pending = [...wall.querySelectorAll('.wall-item img')].filter((img) => !img.complete);
+    if (!pending.length) return Promise.resolve();
+
+    const all = Promise.all(pending.map((img) => new Promise((resolve) => {
+        img.addEventListener('load', resolve, { once: true });
+        img.addEventListener('error', resolve, { once: true });
+    })));
+
+    return Promise.race([all, new Promise((resolve) => setTimeout(resolve, timeoutMs))]);
+}
+
 // Зум колесиком (ПК)
 viewport.addEventListener('wheel', (e) => {
     e.preventDefault(); 
     const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1; 
-    let newScale = Math.max(0.2, Math.min(scale * zoomFactor, 3));
+    let newScale = Math.max(MIN_SCALE, Math.min(scale * zoomFactor, MAX_SCALE));
     const xs = (e.clientX - panX) / scale;
     const ys = (e.clientY - panY) / scale;
     panX = e.clientX - xs * newScale;
@@ -227,7 +285,7 @@ viewport.addEventListener('touchmove', (e) => {
         );
         if (initialPinchDistance) {
             const zoomFactor = currentDistance / initialPinchDistance;
-            let newScale = Math.max(0.2, Math.min(scale * zoomFactor, 3));
+            let newScale = Math.max(MIN_SCALE, Math.min(scale * zoomFactor, MAX_SCALE));
             
             const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
             const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
@@ -493,6 +551,20 @@ addBtn.addEventListener('click', async () => {
 // 3. FIREBASE СИНХРОНИЗАЦИЯ & РЕНДЕР
 // ==========================================
 let localPostsData = {};
+let initialFitScheduled = false;
+
+function revealWall() {
+    document.body.classList.add('view-ready');
+}
+
+function scheduleInitialFit() {
+    waitForWallImages().then(() => {
+        fitAllCards();
+        // Трансформ уже применён, а доска ещё прозрачна — поэтому перехода
+        // «до/после» не видно, она просто плавно проявляется.
+        revealWall();
+    });
+}
 
 const q = query(postsCollection);
 onSnapshot(q, (snapshot) => {
@@ -526,7 +598,23 @@ onSnapshot(q, (snapshot) => {
             if (el) el.remove();
         }
     });
+
+    // Первый снимок — самое время вписать всю доску в экран
+    if (!initialFitScheduled) {
+        initialFitScheduled = true;
+        scheduleInitialFit();
+    }
+}, (error) => {
+    console.error('Firestore error:', error);
+    revealWall();
 });
+
+// Страховка: если база отвечает слишком долго — показываем доску,
+// чтобы не держать чёрный экран. Подгонка всё равно сработает,
+// когда придут данные.
+setTimeout(() => {
+    if (!initialFitScheduled) revealWall();
+}, 4000);
 
 function applyStylesToElement(el, data) {
     if (data.bgStyle === 'transparent') el.classList.add('style-transparent');

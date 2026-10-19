@@ -65,6 +65,13 @@ iframe[src*="netlify"] {
     transform-origin: 0 0;
     background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
     background-size: 40px 40px; 
+    /* Появляется только после автоподгонки масштаба под все карточки */
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+body.view-ready #wall {
+    opacity: 1;
 }
 
 .click-marker {
