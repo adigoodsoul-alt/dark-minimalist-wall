@@ -46,6 +46,48 @@ const sizeInput = document.getElementById('sizeInput');
 const sizeValue = document.getElementById('sizeValue');
 const adminToggle = document.getElementById('adminToggle');
 
+// ==========================================
+// 0. ИДЕНТИФИКАТОР ВЛАДЕЛЬЦА ЗАПИСИ
+// ==========================================
+// Каждый браузер получает случайный id и хранит его локально.
+// Он записывается в пост при создании, поэтому чужие карточки
+// нельзя двигать/редактировать (кроме режима админа).
+const OWNER_STORAGE_KEY = 'wall_owner_id';
+
+function getOwnerId() {
+    try {
+        let id = localStorage.getItem(OWNER_STORAGE_KEY);
+        if (!id) {
+            id = (window.crypto && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : 'owner-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+            localStorage.setItem(OWNER_STORAGE_KEY, id);
+        }
+        return id;
+    } catch (e) {
+        // Приватный режим / localStorage недоступен — работаем разовым id
+        return 'owner-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+    }
+}
+
+const myOwnerId = getOwnerId();
+
+function isOwnPost(data) {
+    return Boolean(data) && data.ownerId === myOwnerId;
+}
+
+function canModifyPost(data) {
+    return isAdmin || isOwnPost(data);
+}
+
+// Перекрашивает все карточки при входе/выходе из режима админа
+function refreshOwnership() {
+    Object.keys(localPostsData).forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('not-owned', !canModifyPost(localPostsData[id]));
+    });
+}
+
 const accentColors = [
     { hex: '#00e5ff', glow: 'rgba(0, 229, 255, 0.25)' }, 
     { hex: '#a855f7', glow: 'rgba(168, 85, 247, 0.25)' }, 
@@ -237,6 +279,7 @@ adminToggle.addEventListener('click', () => {
             adminToggle.textContent = '🔓';
         }
     }
+    refreshOwnership();
 });
 
 // Функция нормализации файлов (HEIC -> JPEG)
@@ -390,6 +433,7 @@ addBtn.addEventListener('click', async () => {
             payload.y = clickY;
             payload.color = accentColors[Math.floor(Math.random() * accentColors.length)];
             payload.zIndex = highestZ + 1; 
+            payload.ownerId = myOwnerId;
             payload.createdAt = serverTimestamp();
             await addDoc(postsCollection, payload); 
             lastPostTime = Date.now();
@@ -451,6 +495,7 @@ function applyStylesToElement(el, data) {
     }
     el.style.setProperty('--post-scale', data.size || 1); 
     el.style.zIndex = data.zIndex || 10;
+    el.classList.toggle('not-owned', !canModifyPost(data));
 }
 
 function applyTextStyles(p, data) {
@@ -512,7 +557,11 @@ function makeDraggableAndEditable(element, docId) {
     let startX, startY, initialX, initialY;
     let lastTapTime = 0; 
 
+    // Двигать/редактировать можно только свою запись либо в режиме админа
+    const owns = () => canModifyPost(localPostsData[docId]);
+
     const startDrag = (clientX, clientY) => {
+        if (!owns()) return;
         isDragging = true; 
         hasMoved = false; 
         element.classList.add('dragging');
@@ -553,12 +602,14 @@ function makeDraggableAndEditable(element, docId) {
 
     element.addEventListener('mousedown', (e) => { 
         if (e.target.classList.contains('delete-btn')) return; 
+        if (!owns()) return;
         e.stopPropagation(); 
         startDrag(e.clientX, e.clientY); 
     });
     window.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
     window.addEventListener('mouseup', endDrag);
     element.addEventListener('dblclick', (e) => { 
+        if (!owns()) return;
         e.stopPropagation(); 
         const data = localPostsData[docId]; 
         if (data) openModal(true, data, docId); 
@@ -566,6 +617,7 @@ function makeDraggableAndEditable(element, docId) {
 
     element.addEventListener('touchstart', (e) => {
         if (e.target.classList.contains('delete-btn')) return;
+        if (!owns()) return;
         e.stopPropagation();
         
         const currentTime = Date.now();

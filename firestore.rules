@@ -35,6 +35,12 @@ service cloud.firestore {
         && request.resource.data.font is string
         && request.resource.data.textColor is string
         && request.resource.data.bgStyle is string
+        // Владелец записи (id браузера). Необязателен для старых записей,
+        // но если указан — обязан быть строкой.
+        && (
+             !request.resource.data.keys().hasAny(['ownerId'])
+             || request.resource.data.ownerId is string
+           )
         // Лимит документа Firestore = 1 МиБ. Держим картинку ощутимо меньше.
         && (
              !request.resource.data.keys().hasAny(['imageBase64'])
