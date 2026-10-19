@@ -139,7 +139,11 @@ let currentNormalizedFile = null;
 // ==========================================
 function updateWallTransform() {
     wall.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-    wall.style.backgroundPosition = `${-panX / scale}px ${-panY / scale}px`;
+    // Сетку точек двигаем вместе с доской, чтобы поле «ехало» за карточками.
+    // Шаг уменьшаем вместе с масштабом (но не мельче 12px, иначе рябит).
+    const gridSize = Math.max(12, 40 * scale);
+    viewport.style.backgroundSize = `${gridSize}px ${gridSize}px`;
+    viewport.style.backgroundPosition = `${panX}px ${panY}px`;
 }
 
 // ==========================================
@@ -324,9 +328,11 @@ viewport.addEventListener('touchend', (e) => {
     initialPinchDistance = null;
 });
 
-// Клик по ПК для создания
+// Клик по ПК для создания.
+// Принимаем и #wall, и #viewport: доска при уменьшенном масштабе занимает
+// не весь экран, а окно создания должно открываться в любом месте поля.
 viewport.addEventListener('mousedown', (e) => {
-    if (e.target !== wall || isSpacePressed || e.button === 1) return;
+    if ((e.target !== wall && e.target !== viewport) || isSpacePressed || e.button === 1) return;
     clickX = (e.clientX - panX) / scale;
     clickY = (e.clientY - panY) / scale;
     

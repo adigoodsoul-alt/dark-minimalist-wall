@@ -46,6 +46,18 @@ iframe[src*="netlify"] {
     overflow: hidden;
     cursor: default;
     touch-action: none; /* Критично для кастомного тач-скролла на телефонах */
+    /* Точки живут на самой области просмотра, а не на доске: иначе при
+       автоподгонке (scale < 1) поле с точками сжималось в прямоугольник,
+       а клики за его пределами не открывали окно создания. */
+    background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+    background-size: 40px 40px;
+    /* Появляется только после автоподгонки масштаба под все карточки */
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+body.view-ready #viewport {
+    opacity: 1;
 }
 
 #viewport.panning { 
@@ -63,15 +75,6 @@ iframe[src*="netlify"] {
     top: 0; 
     left: 0;
     transform-origin: 0 0;
-    background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-    background-size: 40px 40px; 
-    /* Появляется только после автоподгонки масштаба под все карточки */
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-body.view-ready #wall {
-    opacity: 1;
 }
 
 .click-marker {
