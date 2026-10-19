@@ -98,11 +98,32 @@ Vercel автоматически поддерживает `vercel.json` из р
 
 ---
 
-## 🌐 Привязка собственного домена
+## 🌐 Собственный домен
 
-### Netlify
+### Текущая конфигурация проекта (уже настроено)
 
-1. **Site configuration → Domain management → Add a domain** → ввести свой домен.
+| Параметр | Значение |
+|----------|----------|
+| Основной адрес | `https://семёнзаебалвыходи.space` (Punycode: `xn--80aacfkbbop1afmu5a4e1e7d.space`) |
+| Резервный адрес | `https://dark-minimalist-wall.netlify.app` |
+| Netlify-проект | `dark-minimalist-wall` |
+| GitHub-репозиторий | `adigoodsoul-alt/dark-minimalist-wall` (ветка `main`) |
+| Регистратор | REG.RU, NS: `ns1.reg.ru`, `ns2.reg.ru` |
+| Способ DNS | внешний DNS (записи у регистратора), без Netlify DNS |
+
+Записи в зоне REG.RU:
+
+| Тип | Поддомен | Значение |
+|-----|----------|----------|
+| `A` | `@` | `75.2.60.5` |
+| `CNAME` | `www` | `dark-minimalist-wall.netlify.app.` |
+
+Редиректы (настраиваются Netlify автоматически): `http://` → `https://`,
+`www.*` → апекс. Сертификат — Let's Encrypt, выпускается автоматически.
+
+### Как привязать домен с нуля
+
+1. **Project configuration → Domain management → Add a domain** → ввести домен.
 2. Выбрать способ управления DNS.
 
 **Способ A. Netlify DNS (проще, рекомендую)**
@@ -119,6 +140,9 @@ Vercel автоматически поддерживает `vercel.json` из р
 
 > IP `75.2.60.5` — стандартный балансировщик Netlify. Точное значение всегда
 > смотри в разделе **Domain management** — там отображается актуальный адрес.
+>
+> ⚠️ **REG.RU:** нельзя держать `A` и `CNAME` на одном имени (`www`). Сначала удали
+> старую запись `A www`, иначе редактор зоны выдаст «неверно указано».
 
 **Способ C. Просто CNAME на поддомен**
 - `CNAME  www  твой-сайт.netlify.app`
