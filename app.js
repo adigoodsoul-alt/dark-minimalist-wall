@@ -8,6 +8,7 @@ import {
     doc, 
     updateDoc, 
     deleteDoc, 
+    deleteField,
     serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
 
@@ -44,6 +45,7 @@ const addBtn = document.getElementById('addBtn');
 const cancelBtn = document.getElementById('cancelBtn');
 const sizeInput = document.getElementById('sizeInput');
 const sizeValue = document.getElementById('sizeValue');
+const authorInput = document.getElementById('authorInput');
 const adminToggle = document.getElementById('adminToggle');
 
 // ==========================================
@@ -71,6 +73,28 @@ function getOwnerId() {
 }
 
 const myOwnerId = getOwnerId();
+
+// ==========================================
+// 0.1. ПОДПИСЬ АВТОРА
+// ==========================================
+const AUTHOR_STORAGE_KEY = 'wall_author';
+
+function getSavedAuthor() {
+    try { return localStorage.getItem(AUTHOR_STORAGE_KEY) || ''; }
+    catch (e) { return ''; }
+}
+
+function saveAuthor(name) {
+    try {
+        if (name) localStorage.setItem(AUTHOR_STORAGE_KEY, name);
+        else localStorage.removeItem(AUTHOR_STORAGE_KEY);
+    } catch (e) { /* приватный режим — не критично */ }
+}
+
+// Обрезаем пробелы, схлопываем переводы строк, ограничиваем 40 символами
+function normalizeAuthor(raw) {
+    return (raw || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+}
 
 function isOwnPost(data) {
     return Boolean(data) && data.ownerId === myOwnerId;
@@ -330,6 +354,7 @@ function openModal(isEditMode = false, data = null, id = null) {
         bgStyleInput.value = data.bgStyle || "glass";
         sizeInput.value = data.size || 1; 
         sizeValue.textContent = `${data.size || 1}x`;
+        authorInput.value = data.author || '';
         uploadLabel.style.display = 'none'; 
         editImageNotice.style.display = 'block'; 
         editImageNotice.textContent = '*Фото заменить нельзя.';
@@ -342,6 +367,8 @@ function openModal(isEditMode = false, data = null, id = null) {
         uploadLabel.style.display = 'block'; 
         editImageNotice.style.display = 'none'; 
         addBtn.textContent = 'Опубликовать';
+        // Подставляем имя, которое уже вводили раньше
+        authorInput.value = getSavedAuthor();
     }
     modalBackdrop.classList.add('active'); 
     setTimeout(() => textInput.focus(), 100);
@@ -406,6 +433,7 @@ addBtn.addEventListener('click', async () => {
     const text = textInput.value.trim();
     const file = currentNormalizedFile; 
     const scaleSize = parseFloat(sizeInput.value);
+    const author = normalizeAuthor(authorInput.value);
 
     if (!text && !file && !editingPostId) return;
 
@@ -418,16 +446,29 @@ addBtn.addEventListener('click', async () => {
     addBtn.textContent = 'Сохранение...';
 
     try {
-        const payload = { 
-            text, 
-            size: scaleSize, 
-            font: fontInput.value, 
-            textColor: colorInput.value, 
-            bgStyle: bgStyleInput.value 
-        };
         if (editingPostId) {
+            const payload = {
+                text,
+                size: scaleSize,
+                font: fontInput.value,
+                textColor: colorInput.value,
+                bgStyle: bgStyleInput.value
+            };
+            const prev = localPostsData[editingPostId];
+            const prevAuthor = (prev && prev.author) || '';
+            // Подпись отправляем только если её реально изменили: так правка
+            // текста/шрифта продолжает работать даже со старой версией правил.
+            if (author !== prevAuthor) payload.author = author || deleteField();
             await updateDoc(doc(db, "posts", editingPostId), payload);
         } else {
+            const payload = { 
+                text, 
+                size: scaleSize, 
+                font: fontInput.value, 
+                textColor: colorInput.value, 
+                bgStyle: bgStyleInput.value 
+            };
+            if (author) payload.author = author;
             if (file) payload.imageBase64 = await compressImageToBase64(file);
             payload.x = clickX; 
             payload.y = clickY;
@@ -438,6 +479,7 @@ addBtn.addEventListener('click', async () => {
             await addDoc(postsCollection, payload); 
             lastPostTime = Date.now();
         }
+        saveAuthor(author);
         closeModal();
     } catch (err) { 
         console.error(err); 
@@ -476,6 +518,7 @@ onSnapshot(q, (snapshot) => {
                     p.textContent = data.text || ''; 
                     applyTextStyles(p, data); 
                 }
+                renderAuthor(el, data);
             }
         } else if (change.type === "removed") {
             delete localPostsData[id]; 
@@ -504,6 +547,20 @@ function applyTextStyles(p, data) {
     p.style.fontSize = data.font && data.font.includes('Caveat') 
         ? `calc(20px * var(--post-scale))` 
         : `calc(15px * var(--post-scale))`;
+}
+
+function renderAuthor(item, data) {
+    let el = item.querySelector('.post-author');
+    if (data.author) {
+        if (!el) {
+            el = document.createElement('div');
+            el.className = 'post-author';
+            item.appendChild(el);
+        }
+        el.textContent = 'by ' + data.author;
+    } else if (el) {
+        el.remove();
+    }
 }
 
 function renderPost(id, data) {
@@ -545,6 +602,7 @@ function renderPost(id, data) {
         applyTextStyles(p, data); 
         item.appendChild(p);
     }
+    renderAuthor(item, data);
     makeDraggableAndEditable(item, id); 
     wall.appendChild(item);
 }

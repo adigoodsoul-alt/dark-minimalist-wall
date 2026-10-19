@@ -41,6 +41,12 @@ service cloud.firestore {
              !request.resource.data.keys().hasAny(['ownerId'])
              || request.resource.data.ownerId is string
            )
+        // Подпись автора: необязательна, строка до 40 символов
+        && (
+             !request.resource.data.keys().hasAny(['author'])
+             || (request.resource.data.author is string
+                 && request.resource.data.author.size() <= 40)
+           )
         // Лимит документа Firestore = 1 МиБ. Держим картинку ощутимо меньше.
         && (
              !request.resource.data.keys().hasAny(['imageBase64'])
@@ -50,7 +56,7 @@ service cloud.firestore {
       // 3. Обновление: запрещаем менять тип/структуру произвольными данными
       allow update: if
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['x', 'y', 'zIndex', 'text', 'size', 'font', 'textColor', 'bgStyle'])
+          .hasOnly(['x', 'y', 'zIndex', 'text', 'size', 'font', 'textColor', 'bgStyle', 'author'])
         && request.resource.data.size is number
         && request.resource.data.text is string
         && request.resource.data.text.size() <= 2000;

@@ -150,6 +150,26 @@ iframe[src*="netlify"] {
     pointer-events: none; 
 }
 
+/* Подпись автора: микро-лейбл в правом нижнем углу карточки */
+.post-author {
+    align-self: flex-end;
+    max-width: 100%;
+    margin-top: calc(-6px * var(--post-scale));
+    font-size: calc(10px * var(--post-scale));
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    user-select: none;
+}
+
+.wall-item.style-transparent .post-author {
+    opacity: 0.6;
+}
+
 .delete-btn {
     position: absolute; 
     top: -10px; 
@@ -335,6 +355,42 @@ input[type="file"] {
     color: var(--text-secondary); 
     display: flex; 
     justify-content: space-between; 
+}
+
+/* Строка «Подпись» в модалке */
+.author-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.author-control label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.author-control input {
+    flex: 1;
+    min-width: 0;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: 0.3s;
+}
+
+.author-control input::placeholder {
+    color: rgba(255, 255, 255, 0.25);
+}
+
+.author-control input:focus {
+    border-color: var(--ui-accent);
 }
 
 input[type="range"] { 
